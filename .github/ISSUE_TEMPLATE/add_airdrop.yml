@@ -1,0 +1,40 @@
+name: Usulan Airdrop Baru (Propose New Airdrop)
+description: Usulkan proyek airdrop baru dengan data pendanaan terverifikasi untuk dimasukkan ke katalog
+title: "[Usulan]: "
+labels: ["triage", "new-airdrop"]
+body:
+  - type: markdown
+    attributes:
+      value: Terima kasih telah mengusulkan proyek airdrop baru. Pastikan informasi memiliki bukti pendanaan riil dan investor terverifikasi.
+  - type: input
+    id: project_name
+    attributes:
+      label: Nama Proyek & Ticker
+      placeholder: "Contoh: Monad ($MON)"
+    validations:
+      required: true
+  - type: input
+    id: funding
+    attributes:
+      label: Total Pendanaan & Investor Utama
+      placeholder: "Contoh: $225M dipimpin oleh Paradigm"
+    validations:
+      required: true
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Usulan Tier Potensi
+      options:
+        - Tier S (Potensi Utama - Pendanaan > $50M, Tier-1 VC)
+        - Tier A (Potensi Tinggi - Pendanaan $15M-$50M)
+        - Tier B (Potensi Menengah - Pendanaan $5M-$15M)
+        - Tier C (Spekulatif - Early / Bootstrapped)
+    validations:
+      required: true
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Langkah Garap / Faucet / Tautan Resmi
+      placeholder: "Tuliskan langkah-langkah tugas utama dan tautan resmi proyek..."
+    validations:
+      required: true
