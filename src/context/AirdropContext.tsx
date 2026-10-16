@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { AIRDROP_PROJECTS } from "@/data/airdrops";
-import { AirdropProject, DailyTask } from "@/types/airdrop";
+import { AirdropProject, DailyTask, TimelineMilestone } from "@/types/airdrop";
 
 interface CustomTask {
   id: string;
@@ -58,6 +58,11 @@ interface AirdropContextType {
   getDailyCompletionRate: () => { completed: number; total: number; percentage: number };
   addDailyTaskToProject: (projectId: string, task: Omit<DailyTask, "id">) => void;
   deleteDailyTaskFromProject: (projectId: string, taskId: string) => void;
+
+  // Timeline Milestones management
+  addTimelineMilestone: (projectId: string, milestone: Omit<TimelineMilestone, "id">) => void;
+  toggleTimelineMilestone: (projectId: string, milestoneId: string) => void;
+  deleteTimelineMilestone: (projectId: string, milestoneId: string) => void;
 
   // Custom user tasks & tx notes
   customTasks: CustomTask[];
@@ -355,6 +360,49 @@ export const AirdropProvider: React.FC<{ children: React.ReactNode }> = ({ child
     updateProject(updatedProject);
   };
 
+  const addTimelineMilestone = (projectId: string, milestoneData: Omit<TimelineMilestone, "id">) => {
+    const target = projects.find((p) => p.id === projectId);
+    if (!target) return;
+
+    const newMilestone: TimelineMilestone = {
+      ...milestoneData,
+      id: `time-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    };
+
+    const updatedProject: AirdropProject = {
+      ...target,
+      timeline: [...target.timeline, newMilestone],
+    };
+
+    updateProject(updatedProject);
+  };
+
+  const toggleTimelineMilestone = (projectId: string, milestoneId: string) => {
+    const target = projects.find((p) => p.id === projectId);
+    if (!target) return;
+
+    const updatedProject: AirdropProject = {
+      ...target,
+      timeline: target.timeline.map((m) =>
+        m.id === milestoneId ? { ...m, isCompleted: !m.isCompleted } : m
+      ),
+    };
+
+    updateProject(updatedProject);
+  };
+
+  const deleteTimelineMilestone = (projectId: string, milestoneId: string) => {
+    const target = projects.find((p) => p.id === projectId);
+    if (!target) return;
+
+    const updatedProject: AirdropProject = {
+      ...target,
+      timeline: target.timeline.filter((m) => m.id !== milestoneId),
+    };
+
+    updateProject(updatedProject);
+  };
+
   const addCustomTask = (projectId: string, title: string, txHash?: string) => {
     const newTask: CustomTask = {
       id: "task-" + Date.now(),
@@ -486,6 +534,9 @@ export const AirdropProvider: React.FC<{ children: React.ReactNode }> = ({ child
         getDailyCompletionRate,
         addDailyTaskToProject,
         deleteDailyTaskFromProject,
+        addTimelineMilestone,
+        toggleTimelineMilestone,
+        deleteTimelineMilestone,
         customTasks,
         addCustomTask,
         toggleCustomTask,

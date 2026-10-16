@@ -11,19 +11,37 @@ import {
   Flame,
   Award,
   Filter,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { useAirdrops } from "@/context/AirdropContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 
 type MilestoneFilterType = "ALL" | "snapshot_expected" | "tge_claim" | "testnet_launch" | "points_season";
 
 export default function TimelinePage() {
-  const { projects } = useAirdrops();
+  const {
+    projects,
+    addTimelineMilestone,
+    toggleTimelineMilestone,
+    deleteTimelineMilestone,
+  } = useAirdrops();
 
   const [filterType, setFilterType] = React.useState<MilestoneFilterType>("ALL");
   const [showOnlyUpcoming, setShowOnlyUpcoming] = React.useState(true);
+
+  // Add Milestone Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
+  const [targetProjectId, setTargetProjectId] = React.useState("");
+  const [milestoneType, setMilestoneType] = React.useState<
+    "snapshot_expected" | "tge_claim" | "testnet_launch" | "points_season"
+  >("snapshot_expected");
+  const [milestoneTitle, setMilestoneTitle] = React.useState("");
+  const [milestoneDate, setMilestoneDate] = React.useState("Q4 2026");
+  const [milestoneDesc, setMilestoneDesc] = React.useState("");
 
   // Extract all timeline milestones across projects
   const allMilestones = React.useMemo(() => {
@@ -83,6 +101,30 @@ export default function TimelinePage() {
     tge_claim: { label: "Klaim Token & TGE", variant: "tier-s" as const },
   };
 
+  const handleOpenAddModal = () => {
+    setTargetProjectId(projects[0]?.id || "");
+    setMilestoneType("snapshot_expected");
+    setMilestoneTitle("");
+    setMilestoneDate("Q4 2026");
+    setMilestoneDesc("");
+    setIsAddModalOpen(true);
+  };
+
+  const handleCreateMilestone = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetProjectId || !milestoneTitle.trim() || !milestoneDate.trim()) return;
+
+    addTimelineMilestone(targetProjectId, {
+      title: milestoneTitle.trim(),
+      description: milestoneDesc.trim() || "Jadwal penting terkait ekosistem proyek.",
+      date: milestoneDate.trim(),
+      type: milestoneType,
+      isCompleted: false,
+    });
+
+    setIsAddModalOpen(false);
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
@@ -101,8 +143,19 @@ export default function TimelinePage() {
           </p>
         </div>
 
-        {/* Toggle Upcoming Only */}
-        <div className="flex items-center gap-2">
+        {/* Action Controls */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleOpenAddModal}
+            className="text-xs"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Tambah Event Linimasa
+          </Button>
+
+          {/* Toggle Upcoming Only */}
           <button
             onClick={() => setShowOnlyUpcoming(!showOnlyUpcoming)}
             className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
@@ -215,15 +268,37 @@ export default function TimelinePage() {
                     <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded">
                       {item.date}
                     </span>
-                    {item.isCompleted ? (
-                      <span className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Selesai
-                      </span>
-                    ) : (
-                      <span className="text-[11px] text-amber-700 font-medium flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" /> Mendatang
-                      </span>
-                    )}
+                    <button
+                      onClick={() => toggleTimelineMilestone(item.project.id, item.id)}
+                      title="Klik untuk ubah status selesai / mendatang"
+                      className="transition-opacity hover:opacity-80"
+                    >
+                      {item.isCompleted ? (
+                        <span className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Selesai
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-amber-700 font-medium flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" /> Mendatang
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (
+                          confirm(
+                            `Hapus event "${item.title}" dari jadwal ${item.project.name}?`
+                          )
+                        ) {
+                          deleteTimelineMilestone(item.project.id, item.id);
+                        }
+                      }}
+                      title="Hapus event ini"
+                      className="p-1 text-slate-300 hover:text-rose-600 rounded transition-colors"
+                      aria-label="Hapus event linimasa"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
 
@@ -240,6 +315,106 @@ export default function TimelinePage() {
           );
         })}
       </div>
+
+      {/* Add Milestone Modal */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        maxWidth="lg"
+        title="Tambah Event Linimasa Baru"
+        description="Jadwalkan fase peluncuran, estimasi snapshot saldo/poin, atau tanggal klaim TGE token."
+      >
+        <form onSubmit={handleCreateMilestone} className="space-y-4 py-2 text-xs">
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-slate-700">Pilih Proyek Airdrop *</label>
+            <select
+              value={targetProjectId}
+              onChange={(e) => setTargetProjectId(e.target.value)}
+              required
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
+            >
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} {p.ticker ? `($${p.ticker})` : ""} • {p.potential.tier}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-slate-700">Kategori Event *</label>
+              <select
+                value={milestoneType}
+                onChange={(e) =>
+                  setMilestoneType(
+                    e.target.value as
+                      | "snapshot_expected"
+                      | "tge_claim"
+                      | "testnet_launch"
+                      | "points_season"
+                  )
+                }
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
+              >
+                <option value="snapshot_expected">Estimasi Snapshot</option>
+                <option value="tge_claim">Klaim Token & TGE</option>
+                <option value="testnet_launch">Peluncuran Testnet</option>
+                <option value="points_season">Musim Poin</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-slate-700">Tanggal / Kuartal *</label>
+              <input
+                type="text"
+                required
+                placeholder="Contoh: Q4 2026, 2026-11-20, Q1 2027..."
+                value={milestoneDate}
+                onChange={(e) => setMilestoneDate(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-slate-900 focus:border-emerald-600 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-slate-700">Judul Event *</label>
+            <input
+              type="text"
+              required
+              placeholder="Contoh: Snapshot Saldo Testnet, Peluncuran Mainnet Genesis..."
+              value={milestoneTitle}
+              onChange={(e) => setMilestoneTitle(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-slate-700">Deskripsi Singkat</label>
+            <textarea
+              rows={3}
+              placeholder="Jelaskan detail aktivitas atau kriteria kelayakan snapshot..."
+              value={milestoneDesc}
+              onChange={(e) => setMilestoneDesc(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAddModalOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button type="submit" variant="primary" size="sm">
+              Simpan Event Linimasa
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
