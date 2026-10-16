@@ -7,10 +7,11 @@ import {
   ProjectStatus,
   CostType,
   PotentialTier,
+  DailyTask,
 } from "@/types/airdrop";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { Send, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { Send, Sparkles, ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { parseTelegramText } from "@/lib/telegramParser";
 
 interface AddEditAirdropModalProps {
@@ -58,6 +59,9 @@ export const AddEditAirdropModal: React.FC<AddEditAirdropModalProps> = ({
   const [twitter, setTwitter] = React.useState("");
   const [docs, setDocs] = React.useState("");
 
+  // Daily Tasks State
+  const [dailyTasks, setDailyTasks] = React.useState<DailyTask[]>([]);
+
   // Telegram Paste Helper State
   const [showTelegramPaste, setShowTelegramPaste] = React.useState(false);
   const [telegramRawInput, setTelegramRawInput] = React.useState("");
@@ -82,6 +86,9 @@ export const AddEditAirdropModal: React.FC<AddEditAirdropModalProps> = ({
     setWebsite(parsed.links.website);
     setTwitter(parsed.links.twitter);
     if (parsed.links.docs) setDocs(parsed.links.docs);
+    if (parsed.dailyTasks && parsed.dailyTasks.length > 0) {
+      setDailyTasks(parsed.dailyTasks);
+    }
     setShowTelegramPaste(false);
     setTelegramRawInput("");
   };
@@ -111,6 +118,7 @@ export const AddEditAirdropModal: React.FC<AddEditAirdropModalProps> = ({
       setWebsite(projectToEdit.links.website);
       setTwitter(projectToEdit.links.twitter);
       setDocs(projectToEdit.links.docs || "");
+      setDailyTasks(projectToEdit.dailyTasks || []);
     } else {
       // Reset defaults for adding new
       setName("");
@@ -135,6 +143,7 @@ export const AddEditAirdropModal: React.FC<AddEditAirdropModalProps> = ({
       setWebsite("https://");
       setTwitter("https://x.com/");
       setDocs("");
+      setDailyTasks([]);
     }
   }, [projectToEdit, isOpen]);
 
@@ -203,7 +212,7 @@ export const AddEditAirdropModal: React.FC<AddEditAirdropModalProps> = ({
           category: "Setup",
         },
       ],
-      dailyTasks: projectToEdit?.dailyTasks || [],
+      dailyTasks: dailyTasks.filter((t) => t.title.trim() !== ""),
       faucetLinks: projectToEdit?.faucetLinks || [],
       timeline: projectToEdit?.timeline || [
         {
@@ -530,6 +539,114 @@ export const AddEditAirdropModal: React.FC<AddEditAirdropModalProps> = ({
               />
             </div>
           </div>
+        </div>
+
+        {/* Section 4: Daily Tasks (Checklist Rutinitas Harian) */}
+        <div className="space-y-3 pt-3 border-t border-slate-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">
+                4. Tugas Harian (Checklist Rutinitas 24 Jam)
+              </span>
+              <p className="text-[11px] text-slate-400">
+                Aktivitas rutin harian seperti klaim faucet atau interaksi dApp untuk menjaga keaktifan on-chain.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setDailyTasks((prev) => [
+                  ...prev,
+                  {
+                    id: `daily-${Date.now()}-${prev.length}`,
+                    title: "",
+                    description: "",
+                    actionUrl: website !== "https://" ? website : "",
+                    estimatedMinutes: 2,
+                  },
+                ]);
+              }}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 transition-colors"
+            >
+              <Plus className="h-3 w-3" />
+              <span>Tambah Baris Tugas</span>
+            </button>
+          </div>
+
+          {dailyTasks.length > 0 ? (
+            <div className="space-y-2">
+              {dailyTasks.map((dt, idx) => (
+                <div key={dt.id || idx} className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Judul Tugas Harian (contoh: Klaim Faucet Harian)..."
+                      value={dt.title}
+                      onChange={(e) => {
+                        const copy = [...dailyTasks];
+                        copy[idx] = { ...copy[idx], title: e.target.value };
+                        setDailyTasks(copy);
+                      }}
+                      className="flex-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
+                    />
+                    <div className="flex items-center gap-1 shrink-0">
+                      <input
+                        type="number"
+                        min={1}
+                        max={60}
+                        title="Estimasi waktu pengerjaan dalam menit"
+                        value={dt.estimatedMinutes || 2}
+                        onChange={(e) => {
+                          const copy = [...dailyTasks];
+                          copy[idx] = { ...copy[idx], estimatedMinutes: Number(e.target.value) };
+                          setDailyTasks(copy);
+                        }}
+                        className="w-14 rounded border border-slate-200 bg-white px-1.5 py-1 text-xs font-mono text-center text-slate-800 focus:border-emerald-600 focus:outline-none"
+                      />
+                      <span className="text-[10px] text-slate-400">menit</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDailyTasks(dailyTasks.filter((_, i) => i !== idx))}
+                      title="Hapus baris tugas harian"
+                      className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Deskripsi tugas harian..."
+                      value={dt.description}
+                      onChange={(e) => {
+                        const copy = [...dailyTasks];
+                        copy[idx] = { ...copy[idx], description: e.target.value };
+                        setDailyTasks(copy);
+                      }}
+                      className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-800 focus:border-emerald-600 focus:outline-none"
+                    />
+                    <input
+                      type="url"
+                      placeholder="Tautan URL dApp / Faucet..."
+                      value={dt.actionUrl}
+                      onChange={(e) => {
+                        const copy = [...dailyTasks];
+                        copy[idx] = { ...copy[idx], actionUrl: e.target.value };
+                        setDailyTasks(copy);
+                      }}
+                      className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-[11px] font-mono text-slate-800 focus:border-emerald-600 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-3 rounded-lg border border-dashed border-slate-200 text-center text-[11px] text-slate-400 bg-white">
+              Belum ada tugas harian untuk proyek ini. Klik tombol di atas untuk menambahkan tugas rutin 24 jam.
+            </div>
+          )}
         </div>
 
         {/* Submit / Delete Buttons */}

@@ -225,6 +225,39 @@ export function parseTelegramText(rawText: string): ParsedTelegramAirdrop {
     });
   }
 
+  // Extract daily routine tasks (faucet, daily check-in, claim)
+  const dailyTasks: DailyTask[] = [];
+  milestoneTasks.forEach((t) => {
+    const tLower = (t.title + " " + t.description).toLowerCase();
+    if (
+      tLower.includes("faucet") ||
+      tLower.includes("daily") ||
+      tLower.includes("claim") ||
+      tLower.includes("check-in") ||
+      tLower.includes("check in") ||
+      tLower.includes("gm")
+    ) {
+      dailyTasks.push({
+        id: `daily-${Date.now()}-${dailyTasks.length}`,
+        title: t.title,
+        description: t.description || `Aktivitas harian untuk ${name}`,
+        actionUrl: t.actionUrl || websiteUrl,
+        estimatedMinutes: 2,
+      });
+    }
+  });
+
+  // If faucet links exist but no daily task was created, create a default daily faucet task
+  if (dailyTasks.length === 0 && faucetLinks.length > 0) {
+    dailyTasks.push({
+      id: `daily-${Date.now()}-faucet`,
+      title: `Klaim Faucet Harian ${name}`,
+      description: "Klaim gas token testnet setiap 24 jam untuk menjaga keaktifan dompet.",
+      actionUrl: faucetLinks[0].url,
+      estimatedMinutes: 2,
+    });
+  }
+
   return {
     name,
     ticker,
@@ -259,7 +292,7 @@ export function parseTelegramText(rawText: string): ParsedTelegramAirdrop {
       docs: docsUrl,
     },
     milestoneTasks,
-    dailyTasks: [],
+    dailyTasks,
     faucetLinks,
     rawText,
   };

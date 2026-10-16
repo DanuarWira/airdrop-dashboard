@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { AIRDROP_PROJECTS } from "@/data/airdrops";
-import { AirdropProject } from "@/types/airdrop";
+import { AirdropProject, DailyTask } from "@/types/airdrop";
 
 interface CustomTask {
   id: string;
@@ -56,7 +56,9 @@ interface AirdropContextType {
   toggleDailyTask: (taskId: string) => void;
   isDailyTaskCompleted: (taskId: string) => boolean;
   getDailyCompletionRate: () => { completed: number; total: number; percentage: number };
-  
+  addDailyTaskToProject: (projectId: string, task: Omit<DailyTask, "id">) => void;
+  deleteDailyTaskFromProject: (projectId: string, taskId: string) => void;
+
   // Custom user tasks & tx notes
   customTasks: CustomTask[];
   addCustomTask: (projectId: string, title: string, txHash?: string) => void;
@@ -315,6 +317,44 @@ export const AirdropProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   };
 
+  const addDailyTaskToProject = (projectId: string, taskData: Omit<DailyTask, "id">) => {
+    const target = projects.find((p) => p.id === projectId);
+    if (!target) return;
+
+    const newTask: DailyTask = {
+      ...taskData,
+      id: `daily-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    };
+
+    const updatedProject: AirdropProject = {
+      ...target,
+      dailyTasks: [...target.dailyTasks, newTask],
+    };
+
+    updateProject(updatedProject);
+
+    // Auto-track project so the newly added task appears in the daily checklist
+    if (!trackedProjectIds.includes(projectId)) {
+      setTrackedProjectIds((prev) => {
+        const next = [...prev, projectId];
+        saveState(customProjects, next, completedMilestones, completedDailyTasks, customTasks, wallets);
+        return next;
+      });
+    }
+  };
+
+  const deleteDailyTaskFromProject = (projectId: string, taskId: string) => {
+    const target = projects.find((p) => p.id === projectId);
+    if (!target) return;
+
+    const updatedProject: AirdropProject = {
+      ...target,
+      dailyTasks: target.dailyTasks.filter((t) => t.id !== taskId),
+    };
+
+    updateProject(updatedProject);
+  };
+
   const addCustomTask = (projectId: string, title: string, txHash?: string) => {
     const newTask: CustomTask = {
       id: "task-" + Date.now(),
@@ -444,6 +484,8 @@ export const AirdropProvider: React.FC<{ children: React.ReactNode }> = ({ child
         toggleDailyTask,
         isDailyTaskCompleted,
         getDailyCompletionRate,
+        addDailyTaskToProject,
+        deleteDailyTaskFromProject,
         customTasks,
         addCustomTask,
         toggleCustomTask,

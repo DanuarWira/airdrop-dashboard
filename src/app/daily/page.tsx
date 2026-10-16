@@ -8,16 +8,15 @@ import {
   ExternalLink,
   CheckCircle2,
   Circle,
-  Flame,
-  Check,
-  RotateCw,
-  Sparkles,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { useAirdrops } from "@/context/AirdropContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
+import { Modal } from "@/components/ui/Modal";
 
 export default function DailyPage() {
   const {
@@ -26,10 +25,20 @@ export default function DailyPage() {
     toggleDailyTask,
     isDailyTaskCompleted,
     getDailyCompletionRate,
+    addDailyTaskToProject,
+    deleteDailyTaskFromProject,
   } = useAirdrops();
 
   // Selected project filter for daily tasks
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>("ALL");
+
+  // Add Daily Task Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
+  const [targetProjectId, setTargetProjectId] = React.useState<string>("");
+  const [taskTitle, setTaskTitle] = React.useState("");
+  const [taskDesc, setTaskDesc] = React.useState("");
+  const [taskUrl, setTaskUrl] = React.useState("");
+  const [taskMinutes, setTaskMinutes] = React.useState(2);
 
   // UTC Midnight Countdown Timer
   const [timeLeft, setTimeLeft] = React.useState({
@@ -96,6 +105,33 @@ export default function DailyPage() {
   const dailyStats = getDailyCompletionRate();
   const isAllCompleted = dailyStats.total > 0 && dailyStats.completed === dailyStats.total;
 
+  const handleOpenAddModal = (presetProjectId?: string) => {
+    const defaultProj =
+      presetProjectId ||
+      (selectedProjectId !== "ALL" ? selectedProjectId : projects[0]?.id || "");
+    setTargetProjectId(defaultProj);
+    const projObj = projects.find((p) => p.id === defaultProj);
+    setTaskUrl(projObj?.faucetLinks[0]?.url || projObj?.links.website || "https://");
+    setTaskTitle("");
+    setTaskDesc("");
+    setTaskMinutes(2);
+    setIsAddModalOpen(true);
+  };
+
+  const handleCreateDailyTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetProjectId || !taskTitle.trim()) return;
+
+    addDailyTaskToProject(targetProjectId, {
+      title: taskTitle.trim(),
+      description: taskDesc.trim(),
+      actionUrl: taskUrl.trim() || "https://",
+      estimatedMinutes: Number(taskMinutes) || 2,
+    });
+
+    setIsAddModalOpen(false);
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Banner & Reset Countdown */}
@@ -114,17 +150,29 @@ export default function DailyPage() {
           </p>
         </div>
 
-        {/* Live UTC Countdown Widget */}
-        <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg p-2.5 px-3.5 shadow-sm">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-50 text-amber-700 border border-amber-200">
-            <Clock className="h-4 w-4" />
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-medium">
-              Reset Harian (UTC 00:00)
-            </span>
-            <div className="font-mono text-sm font-bold text-slate-900">
-              {timeLeft.hours}j {timeLeft.minutes}m {timeLeft.seconds}d
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => handleOpenAddModal()}
+            className="text-xs"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Tambah Tugas Harian
+          </Button>
+
+          {/* Live UTC Countdown Widget */}
+          <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg p-2 px-3 shadow-sm">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+              <Clock className="h-4 w-4" />
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-medium">
+                Reset Harian (UTC 00:00)
+              </span>
+              <div className="font-mono text-sm font-bold text-slate-900">
+                {timeLeft.hours}j {timeLeft.minutes}m {timeLeft.seconds}d
+              </div>
             </div>
           </div>
         </div>
@@ -248,7 +296,7 @@ export default function DailyPage() {
                   </div>
                 </div>
 
-                {/* Right: Direct Action Button */}
+                {/* Right: Direct Action Button & Delete */}
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                   <a
                     href={item.actionUrl}
@@ -267,6 +315,22 @@ export default function DailyPage() {
                   >
                     {isDone ? "Selesai" : "Tandai Selesai"}
                   </Button>
+                  <button
+                    onClick={() => {
+                      if (
+                        confirm(
+                          `Hapus tugas "${item.title}" dari rutinitas ${item.project.name}?`
+                        )
+                      ) {
+                        deleteDailyTaskFromProject(item.project.id, item.id);
+                      }
+                    }}
+                    title="Hapus tugas harian ini"
+                    className="p-1.5 text-slate-300 hover:text-rose-600 rounded transition-colors"
+                    aria-label="Hapus tugas harian"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             );
@@ -282,16 +346,129 @@ export default function DailyPage() {
               Tidak Ada Tugas Harian yang Aktif
             </h3>
             <p className="max-w-md mx-auto text-xs text-slate-500 leading-relaxed">
-              Pastikan Anda telah menandai proyek airdrop di katalog untuk memunculkan checklist aktivitas hariannya di halaman ini.
+              Tambahkan tugas harian baru untuk proyek airdrop Anda atau tandai proyek di katalog untuk memunculkan aktivitas bawaan.
             </p>
           </div>
-          <Link href="/">
-            <Button variant="primary" size="sm">
-              Lihat Proyek di Katalog
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() =>
+                handleOpenAddModal(
+                  selectedProjectId !== "ALL" ? selectedProjectId : undefined
+                )
+              }
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Tambah Tugas Harian Baru
             </Button>
-          </Link>
+            <Link href="/">
+              <Button variant="outline" size="sm">
+                Lihat Katalog Airdrop
+              </Button>
+            </Link>
+          </div>
         </div>
       )}
+
+      {/* Add Daily Task Modal */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        maxWidth="lg"
+        title="Tambah Tugas Harian Baru"
+        description="Tambahkan rutinitas harian untuk proyek airdrop (klaim faucet, check-in, atau interaksi testnet)."
+      >
+        <form onSubmit={handleCreateDailyTask} className="space-y-4 py-2 text-xs">
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-slate-700">Pilih Proyek Airdrop *</label>
+            <select
+              value={targetProjectId}
+              onChange={(e) => {
+                const pid = e.target.value;
+                setTargetProjectId(pid);
+                const projObj = projects.find((p) => p.id === pid);
+                if (projObj) {
+                  setTaskUrl(projObj.faucetLinks[0]?.url || projObj.links.website || "https://");
+                }
+              }}
+              required
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
+            >
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} {p.ticker ? `($${p.ticker})` : ""} • {p.potential.tier}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-slate-700">Judul Tugas Harian *</label>
+            <input
+              type="text"
+              required
+              placeholder="Contoh: Klaim Testnet Faucet 24 Jam, Daily GM Discord..."
+              value={taskTitle}
+              onChange={(e) => setTaskTitle(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-slate-700">Deskripsi Singkat</label>
+            <input
+              type="text"
+              placeholder="Petunjuk ringkas pengerjaan tugas harian ini..."
+              value={taskDesc}
+              onChange={(e) => setTaskDesc(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2 space-y-1">
+              <label className="text-[11px] font-medium text-slate-700">URL dApp / Faucet</label>
+              <input
+                type="url"
+                placeholder="https://..."
+                value={taskUrl}
+                onChange={(e) => setTaskUrl(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-slate-900 focus:border-emerald-600 focus:outline-none"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-slate-700">Estimasi Waktu</label>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={taskMinutes}
+                  onChange={(e) => setTaskMinutes(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-center text-slate-900 focus:border-emerald-600 focus:outline-none"
+                />
+                <span className="text-slate-500 text-xs shrink-0">menit</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAddModalOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button type="submit" variant="primary" size="sm">
+              Simpan Tugas Harian
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
